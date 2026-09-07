@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# Test runner for .claude/hooks/no-code-writes.sh — run: bash hooktests.txt <repo>
+REPO="${1:-/home/user/learning-boilerplate}"
+HOOK="$REPO/.claude/hooks/no-code-writes.sh"
+FAIL=0
+run() {
+  printf '{"tool_input":{"command":%s}}' "$(python3 -c 'import json,sys;print(json.dumps(sys.argv[1]))' "$1")" | bash "$HOOK" 2>/dev/null
+}
+check() { # expected, cmd
+  run "$2"; got=$?
+  if [ "$got" = "$1" ]; then s="ok  "; else s="FAIL"; FAIL=1; fi
+  printf '%s exp=%s got=%s  %s\n' "$s" "$1" "$got" "$(printf '%s' "$2" | head -1 | cut -c1-70)"
+}
+echo "== must ALLOW =="
+check 0 'git pull origin main'
+check 0 'cat src/app.js'
+check 0 'sed -n "1,40p" src/app.tsx'
+check 0 'grep -rn useState src/'
+check 0 'npm run dev'
+check 0 'npm ci'
+check 0 'npm test'
+check 0 'ls -la'
+check 0 'git log --oneline -5'
+check 0 'git diff HEAD~1 --stat'
+check 0 'cat > docs/PROGRESS.md <<EOF
+x
+EOF'
+check 0 'echo hi >> docs/01-CONCEPTS.md'
+check 0 "echo hi >> 'docs/01 CONCEPTS.md'"
+check 0 'sed -i "s/a/b/" CLAUDE.md'
+check 0 'git add docs/PROGRESS.md && git commit -m "x" && git push -u origin main'
+check 0 'node -e "console.log(1)" 2>&1'
+check 0 'npm run build > /dev/null 2>&1'
+check 0 'cat .claude/skills/step-teacher/SKILL.md'
+check 0 'tee docs/notes.txt'
+check 0 'cp docs/a.md docs/b.md'
+check 0 'touch transcripts/01-intro.txt'
+check 0 'cat > .claude/skills/x/SKILL.md <<EOF
+y
+EOF'
+check 0 'git status'
+check 0 'git add .claude/settings.json .claude/hooks CLAUDE.md && git commit -m "x"'
+check 0 'git add docs reference'
+check 0 'git checkout main'
+echo "== must BLOCK =="
+check 2 'cat > src/app.js <<EOF
+x
+EOF'
+check 2 'echo x >> package.json'
+check 2 'sed -i "s/a/b/" src/app.js'
+check 2 'npm install react@18.2.0'
+check 2 'npm i'
+check 2 'npx create-next-app@14.2.3 my-app'
+check 2 'pnpm add zod'
+check 2 'yarn add axios'
+check 2 'bun add hono'
+check 2 'pip install flask'
+check 2 'python3 -c "open(\"a.py\",\"w\").write(\"x\")"'
+check 2 'tee src/x.ts'
+check 2 'touch src/index.ts'
+check 2 'mkdir -p src && echo "" > src/a.ts'
+check 2 'git apply patch.diff'
+check 2 'cp a.js b.js'
+check 2 'node -e "require(\"fs\").writeFileSync(\"x.js\",\"\")"'
+check 2 'git add -A && git commit -m x'
+check 2 'git add . '
+check 2 'cargo new app'
+check 2 'npx prisma init'
+check 2 'mv old.ts new.ts'
+check 2 'python3 - <<PY
+open("x.js","w")
+PY'
+check 2 'echo "{}" > tsconfig.json'
+check 2 'printf "" > .env'
+check 2 'echo x > "src/a b.ts"'
+check 2 'yarn'
+echo; [ $FAIL = 0 ] && echo "ALL PASSED" || echo "SOME FAILED"
